@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로젝트 관리</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Flatpickr (Calendar) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .history-card, .todo-card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s;
+        }
+        .history-card:hover {
+            transform: translateY(-2px);
+        }
+        .tab-active {
+            border-bottom-color: #3b82f6; /* Blue 500 */
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        /* 상태 아이콘 스타일 */
+        .status-icon {
+            font-size: 1.25rem; /* text-xl */
+            margin-right: 8px;
+            width: 20px; /* 고정 너비 */
+            text-align: center;
+        }
+        .status-completed {
+            color: #10b981; /* Green 500 */
+        }
+        .status-pending {
+            color: #ef4444; /* Red 500 */
+        }
+        /* Flatpickr Event Dot Style */
+        .flatpickr-day.has-event {
+            font-weight: bold;
+        }
+        .flatpickr-day.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background-color: #3b82f6; /* blue-500 */
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-4">📜 프로젝트 관리</h1>
+
+        <!-- GitHub Connection Section -->
+        <div class="mb-6 p-4 bg-gray-100 rounded-xl flex flex-col space-y-3 shadow-inner border border-gray-200">
+            <!-- 1. URL 입력 그룹 -->
+            <div class="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3">
+                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 w-20">🔗 URL:</span>
+                <input type="text" id="githubUrl" placeholder="여기에 GitHub 저장소 URL을 입력하세요 (예: owner/repo)"
+                       value="https://github.com/IndyPD/test_project"
+                       class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-gray-700 text-sm w-full md:w-auto">
+                <!-- 불러오기 버튼 -->
+                <button id="historyOpenBtn" class="px-3 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150 shadow-sm flex-shrink-0 whitespace-nowrap" title="저장된 기록 불러오기">
+                    📂 불러오기
+                </button>
+            </div>
+
+            <!-- 2. Branch 입력 및 연결 버튼 그룹 -->
+            <div class="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3">
+                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 w-20">🌿 Branch:</span>
+                <input type="text" id="branchName" placeholder="브랜치 이름 (예: main, master, dev)"
+                       value="{{ github_raw_branch if github_raw_branch is defined else 'main' }}"
+                       class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-gray-700 text-sm w-full md:w-auto">
+                
+                <!-- Token Input -->
+                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 ml-2">🔑 Token:</span>
+                <input type="password" id="githubToken" placeholder="Private Repo Access Token (Optional)"
+                       value="{{ github_token if github_token else '' }}"
+                       class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-gray-700 text-sm w-full md:w-auto">
+
+                <!-- 연결 버튼 -->
+                <button id="connectButton" 
+                        class="w-full md:w-auto px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition duration-150 shadow-md flex-shrink-0">
+                    GitHub 연결
+                </button>
+            </div>
+        </div>
+
+
+        <!-- View Selector Tabs -->
+        <div class="flex border-b border-gray-200 mb-6">
+            <button id="tabHistory" data-view="history" class="view-tab p-3 text-lg text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition duration-150 tab-active">
+                프로젝트 개발 기록 (History)
+            </button>
+            <button id="tabTodo" data-view="todo" class="view-tab p-3 text-lg text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition duration-150 ml-4">
+                할 일 목록 (To-Do)
+            </button>
+            <!-- Raw 파일 뷰 탭 추가 -->
+            <button id="tabRaw" data-view="raw" class="view-tab p-3 text-lg text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition duration-150 ml-4">
+                Raw 파일
+            </button>
+        </div>
+
+        <!-- Date Filter UI (History View Only) -->
+        <div id="filterContainer" class="mb-8 p-4 bg-white rounded-lg shadow-inner flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <!-- 날짜 선택 필드 -->
+            <input type="text" id="dateFilter" placeholder="날짜 선택"
+                   class="w-full sm:w-40 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-700">
+            <!-- 검색 버튼 -->
+            <button id="filterButton"
+                    class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 shadow-md whitespace-nowrap">
+                검색
+            </button>
+            <!-- 전체 보기 버튼 -->
+            <button id="resetButton"
+                    class="px-6 py-3 bg-gray-400 text-white font-semibold rounded-lg hover:bg-gray-500 transition duration-150 shadow-md whitespace-nowrap">
+                전체 보기
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div id="contentArea" class="space-y-6">
+            <p id="noResults" class="text-center text-gray-500 hidden py-10">결과가 없습니다.</p>
+        </div>
+    </div>
+
+    <!-- History Selection Modal -->
+    <div id="historyModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        
+        <div class="modal-container bg-white w-11/12 md:max-w-2xl mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-[90vh]">
+            
+            <div class="modal-content py-4 text-left px-6">
+                <!-- Title -->
+                <div class="flex justify-between items-center pb-3 border-b">
+                    <p class="text-2xl font-bold text-gray-800">📂 저장소 기록 불러오기</p>
+                    <div class="modal-close cursor-pointer z-50" id="historyCloseBtn">
+                        <svg class="fill-current text-black" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">
+                            <path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- List -->
+                <div id="historyList" class="my-5 space-y-2">
+                    <!-- JS로 목록이 여기에 채워집니다 -->
+                    <p class="text-gray-500 text-center">저장된 기록이 없습니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA DEFINITION (Jinja2를 통해 Python 데이터 주입) ---
+        // Flask 백엔드에서 전달된 데이터를 JavaScript 변수에 할당합니다.
+        const projectHistoryData = {{ history_data | tojson }};
+        const todoData = {{ todo_data | tojson }};
+        const CONNECTED_REPO_URL = '{{ github_repo_url if github_repo_url is defined else "https://github.com/IndyPD/test_project" }}';
+        const CONNECTED_BRANCH = '{{ github_raw_branch if github_raw_branch is defined else "main" }}'; // 백엔드에서 받은 브랜치 이름
+        
+        // Raw 파일 콘텐츠 변수 추가
+        const rawHistoryContent = {{ raw_history_content | tojson }};
+        const rawTodoContent = {{ raw_todo_content | tojson }};
+
+
+        // --- GLOBAL STATE & ELEMENTS ---
+        let currentView = 'history'; // 'history', 'todo', or 'raw'
+        const contentArea = document.getElementById('contentArea');
+        const dateFilterInput = document.getElementById('dateFilter');
+        const filterContainer = document.getElementById('filterContainer');
+        const githubUrlInput = document.getElementById('githubUrl');
+        const branchNameInput = document.getElementById('branchName'); // Branch input 추가
+        const githubTokenInput = document.getElementById('githubToken'); // Token input 추가
+        const noResults = document.getElementById('noResults');
+        const connectButton = document.getElementById('connectButton'); 
+        const historyOpenBtn = document.getElementById('historyOpenBtn');
+        const historyCloseBtn = document.getElementById('historyCloseBtn');
+        const historyModal = document.getElementById('historyModal');
+
+        // URL 파라미터를 사용하여 초기 로드 상태를 확인합니다.
+        const urlParams = new URLSearchParams(window.location.search);
+        const isInitialLoad = !urlParams.has('owner') && !urlParams.has('repo');
+
+        // 초기 로드 시 데이터 배열을 비움 (연결 버튼 클릭 전까지 UI에 메시지를 표시하기 위함)
+        if (isInitialLoad) {
+            projectHistoryData.length = 0;
+            todoData.length = 0;
+        }
+
+
+        // --- UTILITY FUNCTIONS ---
+        /**
+         * GitHub URL 및 Branch Name을 로컬 스토리지에서 로드하고 입력 필드에 설정합니다.
+         */
+        function loadSettings() {
+            // 1. URL 로드 및 설정
+            const url = localStorage.getItem('githubUrl');
+            if (url) {
+                githubUrlInput.value = url;
+            } else {
+                githubUrlInput.value = CONNECTED_REPO_URL;
+                localStorage.setItem('githubUrl', CONNECTED_REPO_URL);
+            }
+
+            // 2. Branch Name 로드 및 설정
+            const branch = localStorage.getItem('branchName');
+            if (branch) {
+                branchNameInput.value = branch;
+            } else {
+                branchNameInput.value = CONNECTED_BRANCH;
+                localStorage.setItem('branchName', CONNECTED_BRANCH);
+            }
+
+            // 3. Token 로드 및 설정 (서버에서 값이 오지 않았을 때만 로컬 스토리지 사용)
+            const token = localStorage.getItem('githubToken');
+            if (token && !githubTokenInput.value) {
+                githubTokenInput.value = token;
+            }
+        }
+
+        /**
+         * GitHub URL 및 Branch Name 입력 필드의 값이 변경될 때 로컬 스토리지에 저장합니다.
+         */
+        function saveSettings() {
+            localStorage.setItem('githubUrl', githubUrlInput.value);
+            localStorage.setItem('branchName', branchNameInput.value);
+            localStorage.setItem('githubToken', githubTokenInput.value);
+        }
+
+        /**
+         * GitHub URL에서 Owner와 Repo 이름을 추출합니다.
+         * @param {string} url - GitHub URL
+         * @returns { {owner: string, repo: string} | null}
+         */
+        function parseGithubUrl(url) {
+            try {
+                // 'https://github.com/owner/repo' 형태를 가정
+                const parts = new URL(url).pathname.split('/').filter(p => p.length > 0);
+                if (parts.length >= 2 && parts[0] && parts[1]) {
+                    // .git 확장자 제거
+                    return { owner: parts[0], repo: parts[1].replace('.git', '') };
+                }
+            } catch (e) {
+                console.error("Invalid GitHub URL:", url, e);
+            }
+            return null;
+        }
+
+        // --- RENDER FUNCTIONS ---
+        
+        // Raw 파일 내용을 렌더링하는 함수
+        function renderRawFiles() {
+            let rawHtml = `<h2 class="text-2xl font-bold text-gray-700 mb-6">GitHub Raw Markdown Files (Branch: ${CONNECTED_BRANCH})</h2>`;
+            
+            rawHtml += renderRawFileBlock("HISTORY.md", rawHistoryContent);
+            rawHtml += renderRawFileBlock("TODO.md", rawTodoContent);
+            
+            contentArea.innerHTML = rawHtml;
+        }
+        
+        // Raw 파일 내용을 표시하는 블록을 렌더링
+        function renderRawFileBlock(filename, content) {
+            const isError = content.startsWith('--- ERROR:');
+            const displayContent = isError ? 
+                                   // 오류 메시지 스타일
+                                   `<pre class="bg-red-50 text-red-700 p-4 rounded-lg overflow-auto max-h-96 text-sm whitespace-pre-wrap">${content}</pre>` : 
+                                   // 정상적인 Markdown 내용 스타일
+                                   `<pre class="bg-gray-800 text-gray-100 p-4 rounded-lg overflow-auto max-h-96 text-sm whitespace-pre-wrap">${content}</pre>`;
+
+            return `
+                <div class="todo-card bg-white p-6 rounded-xl border border-gray-200 mb-8">
+                    <h3 class="text-xl font-extrabold text-gray-900 mb-3">${filename} (Raw Content)</h3>
+                    ${displayContent}
+                </div>
+            `;
+        }
+
+
+        /**
+         * History 기록 카드를 HTML로 렌더링합니다.
+         */
+        function renderHistoryCard(history) {
+            // 섹션 순서를 고정합니다 (1. Hardware -> 2. Software -> 3. Issues -> 4. Other)
+            const sectionOrder = ['hardware', 'software', 'issues', 'other'];
+            const sectionsHtml = sectionOrder.map(key => {
+                const titleMap = {
+                    hardware: "1. 하드웨어 (Hardware)",
+                    software: "2. 소프트웨어 (Software)",
+                    issues: "3. 이슈 (Issues)",
+                    other: "4. 기타 (Other)"
+                };
+                const sectionTitle = titleMap[key] || key;
+                const content = history.sections[key];
+
+                // 내용이 ". "으로 연결되어 있다고 가정하고, 이를 다시 리스트 항목으로 분리하여 렌더링
+                const contentList = content.split('. ').filter(item => item.trim() !== '').map(item => `
+                    <li class="mt-1 ml-4 text-sm text-gray-600 list-item list-disc">${item.trim().startsWith('*') ? item.trim().substring(1).trim() : item.trim()}</li>
+                `).join('');
+
+                return `
+                    <div class="mb-4">
+                        <h4 class="text-md font-bold text-gray-800 mb-2 border-b border-gray-100 pb-1">${sectionTitle}</h4>
+                        <ul class="list-disc pl-5 space-y-1">${contentList || '<li class="text-sm text-gray-500 italic">- 기록 없음</li>'}</ul>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="history-card bg-white p-6 rounded-xl border border-gray-200">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 border-b pb-3">
+                        <h2 class="text-xl font-extrabold text-blue-600">
+                            ${history.version} <span class="text-lg text-gray-700 font-semibold">(${history.title})</span>
+                        </h2>
+                        <span class="text-sm font-medium text-gray-500 mt-2 sm:mt-0">
+                            ${history.date}
+                        </span>
+                    </div>
+                    <div>
+                        ${sectionsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * To-Do/WBS 뷰를 렌더링합니다. (체크박스 대신 아이콘 사용)
+         */
+        function renderTodo() {
+            noResults.classList.add('hidden');
+            let todoHtml = ``;
+
+            if (todoData.length === 0) {
+                 noResults.textContent = `현재 연결된 저장소(${CONNECTED_REPO_URL}, Branch: ${CONNECTED_BRANCH})에서 파싱된 유효한 To-Do 데이터가 없습니다.`;
+                 noResults.classList.remove('hidden');
+                 contentArea.innerHTML = '';
+                 return;
+            }
+
+            todoData.forEach(phase => {
+                // Phase (Project/전체 작업)
+                const lastUpdatedHtml = phase.last_updated 
+                    ? `<span class="ml-3 text-sm text-gray-500 font-normal">${phase.last_updated}</span>` 
+                    : '';
+                todoHtml += `
+                    <div class="todo-card bg-white p-6 rounded-xl border border-gray-200 mb-8">
+                        <div class="flex items-center mb-4 pb-3 border-b border-gray-100">
+                            <!-- color는 클래스 이름으로 직접 사용합니다. -->
+                            <span class="${phase.color} text-white text-sm font-bold px-3 py-1 rounded-full mr-3">${phase.id}</span>
+                            <h3 class="text-xl font-extrabold text-gray-900 flex items-center">${phase.title}${lastUpdatedHtml}</h3>
+                        </div>
+                `;
+
+                phase.subtasks.forEach(subtask => {
+                    // Subtask (Task 상세 목록)
+                    // subtask.id가 있으면 표시하고, 없으면(빈 문자열) 공백도 없이 제목만 표시
+                    const subtaskHeader = subtask.id 
+                        ? `<h4 class="text-lg font-semibold text-gray-800 mb-3">${subtask.id} ${subtask.title}</h4>`
+                        : `<h4 class="text-lg font-semibold text-gray-800 mb-3">${subtask.title}</h4>`;
+
+                    todoHtml += `
+                        <div class="ml-4 mt-4 p-4 border border-gray-100 rounded-lg bg-gray-50">
+                            ${subtaskHeader}
+                            <ul class="list-none space-y-2">
+                    `;
+
+                    subtask.tasks.forEach(task => {
+                        if (task.type === 'text') {
+                            // 체크박스가 없는 일반 텍스트 (헤더 등)
+                            let indentClass = '';
+                            let styleClass = 'mt-4 mb-2 text-gray-800 font-bold border-b border-gray-100 pb-1 text-base';
+
+                            if (/^\d+\.0/.test(task.content)) {
+                                styleClass = 'mt-6 mb-3 text-gray-900 font-extrabold text-lg border-b-2 border-gray-200 pb-2';
+                            } else if (/^\d+\.\d+/.test(task.content)) {
+                                indentClass = 'ml-6';
+                            }
+
+                            todoHtml += `
+                                <li class="${indentClass} ${styleClass}">
+                                    ${task.content}
+                                </li>
+                            `;
+                        } else {
+                            // 체크박스가 있는 Task
+                            const isCompleted = task.status === 'checked';
+                            const icon = isCompleted ? '✓' : '✗';
+                            const iconClass = isCompleted ? 'status-icon status-completed' : 'status-icon status-pending';
+                            const descriptionClass = isCompleted ? 'line-through text-gray-500 italic' : 'text-gray-700';
+                            
+                            const idSpan = task.id ? `<span class="font-medium mr-2">${task.id}</span>` : '';
+
+                            todoHtml += `
+                                <li class="flex items-center text-base ml-12">
+                                    <span class="${iconClass}" aria-label="${isCompleted ? 'Completed' : 'Pending'}">${icon}</span>
+                                    <span class="${descriptionClass}">
+                                        ${idSpan}${task.description}
+                                    </span>
+                                </li>
+                            `;
+                        }
+                    });
+
+                    todoHtml += `
+                            </ul>
+                        </div>
+                    `;
+                });
+
+                todoHtml += `</div>`; // Close todo-card
+            });
+
+            contentArea.innerHTML = todoHtml;
+        }
+
+        /**
+         * History 뷰를 렌더링합니다. 날짜 필터링 기능 포함.
+         */
+        function renderHistory(filterValue = '') {
+            contentArea.innerHTML = '';
+            const normalizedFilter = filterValue.trim();
+
+            if (projectHistoryData.length === 0) {
+                 noResults.textContent = `현재 연결된 저장소(${CONNECTED_REPO_URL}, Branch: ${CONNECTED_BRANCH})에서 파싱된 유효한 History 데이터가 없습니다.`;
+                 noResults.classList.remove('hidden');
+                 return;
+            }
+
+            const filteredData = normalizedFilter
+                // 날짜 필터링: yyyy-mm-dd 형식으로 비교
+                ? projectHistoryData.filter(item => item.date.startsWith(normalizedFilter)).sort((a, b) => new Date(b.date) - new Date(a.date))
+                // 전체 보기: 날짜 역순으로 정렬
+                : projectHistoryData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filteredData.length === 0) {
+                noResults.textContent = `해당 날짜 (${normalizedFilter})에 일치하는 기록이 없습니다.`;
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+                filteredData.forEach(history => {
+                    contentArea.innerHTML += renderHistoryCard(history);
+                });
+            }
+        }
+
+        // --- EVENT HANDLERS & INITIALIZATION ---
+        
+        /**
+         * 뷰 전환 및 UI 업데이트
+         */
+        function switchView(viewType) {
+            currentView = viewType;
+
+            // 탭 스타일 업데이트
+            document.querySelectorAll('.view-tab').forEach(tab => {
+                if (tab.dataset.view === viewType) {
+                    tab.classList.add('tab-active');
+                } else {
+                    tab.classList.remove('tab-active');
+                }
+            });
+
+            // 필터 UI 표시/숨김
+            filterContainer.classList.add('hidden');
+            noResults.classList.add('hidden'); 
+            contentArea.innerHTML = '';
+            
+            if (viewType === 'history') {
+                filterContainer.classList.remove('hidden');
+                // 현재 필터 값으로 History 렌더링
+                renderHistory(dateFilterInput.value); 
+            } else if (viewType === 'todo') {
+                renderTodo();
+            } else if (viewType === 'raw') {
+                // Raw 파일 뷰는 필터 UI를 숨깁니다.
+                renderRawFiles();
+            }
+        }
+
+
+        // 1. GitHub URL 및 Branch Name 로드 및 변경 이벤트 리스너 설정
+        loadSettings();
+        githubUrlInput.addEventListener('change', saveSettings);
+        branchNameInput.addEventListener('change', saveSettings);
+        githubTokenInput.addEventListener('change', saveSettings);
+
+
+        // 1.5. GitHub 연결 버튼 이벤트 리스너 추가
+        connectButton.addEventListener('click', () => {
+            const url = githubUrlInput.value;
+            const branch = branchNameInput.value;
+            const repoInfo = parseGithubUrl(url);
+            const token = githubTokenInput.value;
+
+            if (repoInfo && branch.trim()) {
+                // 1. URL과 Branch 저장
+                saveSettings();
+
+                // 2. Flask 서버에 새로운 저장소 정보와 브랜치 이름으로 페이지를 리로드 요청
+                let targetUrl = `/?owner=${repoInfo.owner}&repo=${repoInfo.repo}&branch=${branch.trim()}`;
+                if (token.trim()) {
+                    targetUrl += `&token=${token.trim()}`;
+                }
+                window.location.href = targetUrl;
+            } else {
+                // 경고 메시지를 사용자 정의 UI 대신 alert으로 표시 (간단한 구현을 위해)
+                alert('유효한 GitHub 저장소 URL과 브랜치 이름을 입력해 주세요.');
+            }
+        });
+
+
+        // 2. 탭 전환 이벤트 리스너
+        document.querySelectorAll('.view-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                switchView(e.target.dataset.view);
+            });
+        });
+
+        // 3. History 필터링 이벤트 리스너: 검색 버튼
+        document.getElementById('filterButton').addEventListener('click', () => {
+            if (currentView === 'history') {
+                renderHistory(dateFilterInput.value);
+            }
+        });
+
+        // 3. History 필터링 이벤트 리스너: 전체 보기 버튼
+        document.getElementById('resetButton').addEventListener('click', () => {
+            if (currentView === 'history') {
+                dateFilterInput.value = ''; // 필터 입력값 초기화
+                renderHistory(); // 전체 보기 렌더링
+            }
+        });
+
+        // 3. History 필터링 이벤트 리스너: 날짜 입력 변경 시 즉시 필터 적용
+        dateFilterInput.addEventListener('change', () => {
+            if (currentView === 'history') {
+                renderHistory(dateFilterInput.value);
+            }
+        });
+
+        // 초기 뷰 렌더링
+        if (isInitialLoad) {
+             // 연결 버튼을 누르지 않은 초기 상태에서는 프롬프트 메시지를 표시합니다.
+             contentArea.innerHTML = `
+                <div class="bg-white p-12 rounded-xl border-4 border-dashed border-gray-300 text-center space-y-4">
+                    <!-- Icon: Bell/Notification -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-gray-400">
+                        <path d="M15 17h5l-1.405-2.81C18.172 13.923 18 13.435 18 13v-3c0-2.31 1.9-4.31 4-4.82V5c0-1.1-.9-2-2-2h-1c-1.1 0-2 .9-2 2v.18C15.9 5.69 14 7.69 14 10v3c0 .435-.172.923-.595 1.19L12 17h3z"/>
+                        <path d="M10 17h3l-1.405-2.81C11.172 13.923 11 13.435 11 13v-3c0-2.31 1.9-4.31 4-4.82V5c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v.18C7.9 5.69 6 7.69 6 10v3c0 .435-.172.923-.595 1.19L4 17h3z"/>
+                        <path d="M11 21h2m-1-4v4"/>
+                    </svg>
+                    <h3 class="text-2xl font-semibold text-gray-700">GitHub 저장소 연결이 필요합니다</h3>
+                    <p class="text-gray-500">위 입력창에 GitHub 저장소 URL과 브랜치 이름을 입력하고 <strong>GitHub 연결</strong> 버튼을 눌러 프로젝트 기록을 불러오세요.</p>
+                </div>
+            `;
+            filterContainer.classList.add('hidden');
+        } else {
+            // 연결된 상태 (페이지 리로드 후), History 뷰로 시작
+            switchView('history');
+        }
+
+        // --- FLATPICKR INITIALIZATION ---
+        // 데이터가 있는 날짜 목록 추출
+        const availableDates = projectHistoryData.map(item => item.date);
+        
+        // Flatpickr 달력 초기화
+        flatpickr("#dateFilter", {
+            locale: "ko",
+            dateFormat: "Y-m-d",
+            allowInput: true,
+            onDayCreate: function(dObj, dStr, fp, dayElem) {
+                // 날짜 비교를 위해 YYYY-MM-DD 형식으로 변환
+                const year = dayElem.dateObj.getFullYear();
+                const month = String(dayElem.dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dayElem.dateObj.getDate()).padStart(2, '0');
+                const formattedDate = `${year}-${month}-${day}`;
+                
+                if (availableDates.includes(formattedDate)) {
+                    dayElem.classList.add('has-event');
+                    dayElem.title = "기록 있음";
+                }
+            },
+            onChange: function(selectedDates, dateStr, instance) {
+                if (currentView === 'history') {
+                    renderHistory(dateStr);
+                }
+            }
+        });
+
+        // --- AUTO SHUTDOWN HEARTBEAT ---
+        // 1초마다 서버에 생존 신호를 보냅니다. 창을 닫으면 신호가 끊겨 서버가 종료됩니다.
+        setInterval(() => {
+            fetch('/heartbeat').catch(() => {});
+        }, 1000);
+
+        // --- HISTORY MODAL LOGIC ---
+        function toggleModal() {
+            const body = document.querySelector('body');
+            historyModal.classList.toggle('opacity-0');
+            historyModal.classList.toggle('pointer-events-none');
+            body.classList.toggle('modal-active');
+        }
+
+        historyOpenBtn.addEventListener('click', async () => {
+            // 1. 서버에서 히스토리 데이터 가져오기
+            try {
+                const response = await fetch('/api/history');
+                const historyList = await response.json();
+                const listContainer = document.getElementById('historyList');
+                
+                listContainer.innerHTML = '';
+
+                if (historyList.length === 0) {
+                    listContainer.innerHTML = '<p class="text-gray-500 text-center py-4">저장된 기록이 없습니다.</p>';
+                } else {
+                    historyList.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'history-item p-3 border border-gray-200 rounded-lg hover:border-blue-400 transition duration-150';
+                        
+                        const tokenBadge = item.token ? '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full ml-2">Token 저장됨</span>' : '';
+                        
+                        div.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-gray-800 text-lg">${item.owner}/${item.repo}</span>
+                                <span class="text-xs text-gray-400">${item.date}</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">
+                                <span class="font-semibold">Branch:</span> ${item.branch} ${tokenBadge}
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1 truncate">${item.url}</div>
+                        `;
+                        
+                        // 항목 클릭 시 입력창 채우고 모달 닫기
+                        div.addEventListener('click', () => {
+                            githubUrlInput.value = item.url;
+                            branchNameInput.value = item.branch;
+                            if (item.token) {
+                                githubTokenInput.value = item.token;
+                            } else {
+                                githubTokenInput.value = '';
+                            }
+                            toggleModal();
+                        });
+                        
+                        listContainer.appendChild(div);
+                    });
+                }
+                toggleModal();
+            } catch (e) {
+                console.error("Failed to fetch history:", e);
+                alert("기록을 불러오는 중 오류가 발생했습니다.");
+            }
+        });
+
+        historyCloseBtn.addEventListener('click', toggleModal);
+        document.querySelector('.modal-overlay').addEventListener('click', toggleModal);
+    </script>
+</body>
+</html>
