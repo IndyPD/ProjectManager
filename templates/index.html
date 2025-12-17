@@ -60,25 +60,29 @@
 <body class="p-4 sm:p-8">
 
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl font-extrabold text-gray-900 mb-4">📜 프로젝트 관리</h1>
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-4">📜 프로젝트 관리 <span class="text-sm text-blue-500 font-medium align-middle">v0.1.2</span></h1>
 
         <!-- GitHub Connection Section -->
         <div class="mb-6 p-4 bg-gray-100 rounded-xl flex flex-col space-y-3 shadow-inner border border-gray-200">
+            <!-- 0. 프로젝트명 입력 그룹 (추가됨) -->
+            <div class="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3">
+                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 w-24">🏷️ 프로젝트명:</span>
+                <input type="text" id="projectName" placeholder="프로젝트 별칭 (예: 내 프로젝트 1)"
+                       value="{{ project_name if project_name else '' }}"
+                       class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-gray-700 text-sm w-full md:w-auto">
+            </div>
+
             <!-- 1. URL 입력 그룹 -->
             <div class="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3">
-                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 w-20">🔗 URL:</span>
+                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 w-24">🔗 URL:</span>
                 <input type="text" id="githubUrl" placeholder="여기에 GitHub 저장소 URL을 입력하세요 (예: owner/repo)"
                        value="https://github.com/IndyPD/test_project"
                        class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-gray-700 text-sm w-full md:w-auto">
-                <!-- 불러오기 버튼 -->
-                <button id="historyOpenBtn" class="px-3 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150 shadow-sm flex-shrink-0 whitespace-nowrap" title="저장된 기록 불러오기">
-                    📂 불러오기
-                </button>
             </div>
 
             <!-- 2. Branch 입력 및 연결 버튼 그룹 -->
             <div class="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3">
-                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 w-20">🌿 Branch:</span>
+                <span class="font-bold text-gray-700 whitespace-nowrap flex-shrink-0 w-24">🌿 Branch:</span>
                 <input type="text" id="branchName" placeholder="브랜치 이름 (예: main, master, dev)"
                        value="{{ github_raw_branch if github_raw_branch is defined else 'main' }}"
                        class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500 text-gray-700 text-sm w-full md:w-auto">
@@ -110,6 +114,10 @@
             <button id="tabRaw" data-view="raw" class="view-tab p-3 text-lg text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition duration-150 ml-4">
                 Raw 파일
             </button>
+            <!-- 프로젝트 목록 탭 추가 -->
+            <button id="tabProjectList" data-view="projectList" class="view-tab p-3 text-lg text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition duration-150 ml-4">
+                📂 프로젝트 목록
+            </button>
         </div>
 
         <!-- Date Filter UI (History View Only) -->
@@ -135,27 +143,49 @@
         </div>
     </div>
 
-    <!-- History Selection Modal -->
-    <div id="historyModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+    <!-- Edit Project Modal -->
+    <div id="editModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
         
         <div class="modal-container bg-white w-11/12 md:max-w-2xl mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-[90vh]">
-            
             <div class="modal-content py-4 text-left px-6">
                 <!-- Title -->
                 <div class="flex justify-between items-center pb-3 border-b">
-                    <p class="text-2xl font-bold text-gray-800">📂 저장소 기록 불러오기</p>
-                    <div class="modal-close cursor-pointer z-50" id="historyCloseBtn">
+                    <p class="text-2xl font-bold text-gray-800">✏️ 프로젝트 정보 수정</p>
+                    <div class="modal-close cursor-pointer z-50" id="editModalCloseBtn">
                         <svg class="fill-current text-black" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">
                             <path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path>
                         </svg>
                     </div>
                 </div>
 
-                <!-- List -->
-                <div id="historyList" class="my-5 space-y-2">
-                    <!-- JS로 목록이 여기에 채워집니다 -->
-                    <p class="text-gray-500 text-center">저장된 기록이 없습니다.</p>
+                <!-- Edit Form -->
+                <div class="my-5 space-y-4">
+                    <input type="hidden" id="editOriginalUrl">
+                    <input type="hidden" id="editOriginalBranch">
+                    
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">프로젝트명</label>
+                        <input type="text" id="editProjectName" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">URL</label>
+                        <input type="text" id="editUrl" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Branch</label>
+                        <input type="text" id="editBranch" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Token (Optional)</label>
+                        <input type="password" id="editToken" class="w-full p-2 border rounded">
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex justify-end pt-2">
+                    <button id="saveEditBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2">저장</button>
+                    <button id="cancelEditBtn" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">취소</button>
                 </div>
             </div>
         </div>
@@ -179,14 +209,18 @@
         const contentArea = document.getElementById('contentArea');
         const dateFilterInput = document.getElementById('dateFilter');
         const filterContainer = document.getElementById('filterContainer');
+        const projectNameInput = document.getElementById('projectName'); // Project Name input 추가
         const githubUrlInput = document.getElementById('githubUrl');
         const branchNameInput = document.getElementById('branchName'); // Branch input 추가
         const githubTokenInput = document.getElementById('githubToken'); // Token input 추가
         const noResults = document.getElementById('noResults');
         const connectButton = document.getElementById('connectButton'); 
-        const historyOpenBtn = document.getElementById('historyOpenBtn');
-        const historyCloseBtn = document.getElementById('historyCloseBtn');
-        const historyModal = document.getElementById('historyModal');
+        
+        // Edit Modal Elements
+        const editModal = document.getElementById('editModal');
+        const editModalCloseBtn = document.getElementById('editModalCloseBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const saveEditBtn = document.getElementById('saveEditBtn');
 
         // URL 파라미터를 사용하여 초기 로드 상태를 확인합니다.
         const urlParams = new URLSearchParams(window.location.search);
@@ -204,6 +238,13 @@
          * GitHub URL 및 Branch Name을 로컬 스토리지에서 로드하고 입력 필드에 설정합니다.
          */
         function loadSettings() {
+            // 0. Project Name 로드
+            const pName = localStorage.getItem('projectName');
+            if (pName && !projectNameInput.value) {
+                // 서버에서 값이 오지 않았을 때만 로컬 스토리지 사용
+                projectNameInput.value = pName;
+            }
+
             // 1. URL 로드 및 설정
             const url = localStorage.getItem('githubUrl');
             if (url) {
@@ -233,6 +274,7 @@
          * GitHub URL 및 Branch Name 입력 필드의 값이 변경될 때 로컬 스토리지에 저장합니다.
          */
         function saveSettings() {
+            localStorage.setItem('projectName', projectNameInput.value);
             localStorage.setItem('githubUrl', githubUrlInput.value);
             localStorage.setItem('branchName', branchNameInput.value);
             localStorage.setItem('githubToken', githubTokenInput.value);
@@ -424,6 +466,80 @@
         }
 
         /**
+         * 프로젝트 목록 뷰를 렌더링합니다.
+         */
+        async function renderProjectList() {
+            contentArea.innerHTML = '<p class="text-center text-gray-500 py-10">목록을 불러오는 중...</p>';
+            
+            try {
+                const response = await fetch('/api/history');
+                const historyList = await response.json();
+                
+                if (historyList.length === 0) {
+                    contentArea.innerHTML = '<p class="text-center text-gray-500 py-10">저장된 프로젝트가 없습니다.</p>';
+                    return;
+                }
+
+                let html = `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">프로젝트명</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">저장소 (Owner/Repo)</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Token</th>
+                                    <th class="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                `;
+
+                historyList.forEach((item, index) => {
+                    const pName = item.project_name || `${item.owner}/${item.repo}`;
+                    // [수정] 인라인 JS 호출 시 작은따옴표(')가 있으면 오류가 발생하므로 이스케이프 처리
+                    const pNameEscaped = pName.replace(/'/g, "\\'");
+                    const tokenStatus = item.token ? '<span class="text-green-600 font-bold">✓</span>' : '<span class="text-gray-400">-</span>';
+                    
+                    // JSON 객체를 문자열로 변환하여 data 속성에 저장 (따옴표 이스케이프 처리)
+                    const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+
+                    html += `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="py-3 px-4 text-sm font-bold text-gray-800">${pName}</td>
+                            <td class="py-3 px-4 text-sm text-gray-600">
+                                <a href="${item.url}" target="_blank" class="hover:text-blue-600 hover:underline">${item.owner}/${item.repo}</a>
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600">${item.branch}</td>
+                            <td class="py-3 px-4 text-sm text-center">${tokenStatus}</td>
+                            <td class="py-3 px-4 text-right text-sm space-x-2">
+                                <button onclick="loadProject('${item.owner}', '${item.repo}', '${item.branch}', '${item.token || ''}', '${pNameEscaped}')" 
+                                        class="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 font-medium">
+                                    불러오기
+                                </button>
+                                <button onclick="openEditModal(${itemJson})" 
+                                        class="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 font-medium">
+                                    수정
+                                </button>
+                                <button onclick="deleteProject('${item.url}', '${item.branch}')" 
+                                        class="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 font-medium">
+                                    삭제
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table></div>`;
+                contentArea.innerHTML = html;
+
+            } catch (e) {
+                console.error("Failed to fetch project list:", e);
+                contentArea.innerHTML = '<p class="text-center text-red-500 py-10">목록을 불러오는 중 오류가 발생했습니다.</p>';
+            }
+        }
+
+        /**
          * History 뷰를 렌더링합니다. 날짜 필터링 기능 포함.
          */
         function renderHistory(filterValue = '') {
@@ -484,6 +600,8 @@
             } else if (viewType === 'raw') {
                 // Raw 파일 뷰는 필터 UI를 숨깁니다.
                 renderRawFiles();
+            } else if (viewType === 'projectList') {
+                renderProjectList();
             }
         }
 
@@ -491,6 +609,7 @@
         // 1. GitHub URL 및 Branch Name 로드 및 변경 이벤트 리스너 설정
         loadSettings();
         githubUrlInput.addEventListener('change', saveSettings);
+        projectNameInput.addEventListener('change', saveSettings);
         branchNameInput.addEventListener('change', saveSettings);
         githubTokenInput.addEventListener('change', saveSettings);
 
@@ -498,6 +617,7 @@
         // 1.5. GitHub 연결 버튼 이벤트 리스너 추가
         connectButton.addEventListener('click', () => {
             const url = githubUrlInput.value;
+            const pName = projectNameInput.value;
             const branch = branchNameInput.value;
             const repoInfo = parseGithubUrl(url);
             const token = githubTokenInput.value;
@@ -507,7 +627,7 @@
                 saveSettings();
 
                 // 2. Flask 서버에 새로운 저장소 정보와 브랜치 이름으로 페이지를 리로드 요청
-                let targetUrl = `/?owner=${repoInfo.owner}&repo=${repoInfo.repo}&branch=${branch.trim()}`;
+                let targetUrl = `/?owner=${repoInfo.owner}&repo=${repoInfo.repo}&branch=${branch.trim()}&project_name=${encodeURIComponent(pName)}`;
                 if (token.trim()) {
                     targetUrl += `&token=${token.trim()}`;
                 }
@@ -522,7 +642,8 @@
         // 2. 탭 전환 이벤트 리스너
         document.querySelectorAll('.view-tab').forEach(tab => {
             tab.addEventListener('click', (e) => {
-                switchView(e.target.dataset.view);
+                // [수정] e.target 대신 e.currentTarget을 사용하여 버튼 내부(텍스트 등)를 클릭해도 버튼의 data-view를 가져오도록 함
+                switchView(e.currentTarget.dataset.view);
             });
         });
 
@@ -603,67 +724,110 @@
             fetch('/heartbeat').catch(() => {});
         }, 1000);
 
-        // --- HISTORY MODAL LOGIC ---
-        function toggleModal() {
+        // --- PROJECT LIST ACTIONS ---
+        
+        // 1. 불러오기 (Load)
+        window.loadProject = function(owner, repo, branch, token, pName) {
+            // 입력창 업데이트
+            githubUrlInput.value = `https://github.com/${owner}/${repo}`;
+            branchNameInput.value = branch;
+            githubTokenInput.value = token;
+            projectNameInput.value = pName;
+            saveSettings();
+            
+            // 페이지 이동
+            let targetUrl = `/?owner=${owner}&repo=${repo}&branch=${branch}&project_name=${encodeURIComponent(pName)}`;
+            if (token) targetUrl += `&token=${token}`;
+            window.location.href = targetUrl;
+        };
+
+        // 2. 삭제 (Delete)
+        window.deleteProject = async function(url, branch) {
+            if (!confirm('정말 이 프로젝트 기록을 삭제하시겠습니까?')) return;
+            try {
+                const response = await fetch('/api/history/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ url: url, branch: branch })
+                });
+                if (response.ok) {
+                    renderProjectList(); // 목록 새로고침
+                } else {
+                    alert('삭제 실패');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('오류 발생');
+            }
+        };
+
+        // --- EDIT MODAL LOGIC ---
+        function toggleEditModal() {
             const body = document.querySelector('body');
-            historyModal.classList.toggle('opacity-0');
-            historyModal.classList.toggle('pointer-events-none');
+            editModal.classList.toggle('opacity-0');
+            editModal.classList.toggle('pointer-events-none');
             body.classList.toggle('modal-active');
         }
 
-        historyOpenBtn.addEventListener('click', async () => {
-            // 1. 서버에서 히스토리 데이터 가져오기
-            try {
-                const response = await fetch('/api/history');
-                const historyList = await response.json();
-                const listContainer = document.getElementById('historyList');
-                
-                listContainer.innerHTML = '';
+        window.openEditModal = function(item) {
+            document.getElementById('editOriginalUrl').value = item.url;
+            document.getElementById('editOriginalBranch').value = item.branch;
+            
+            document.getElementById('editProjectName').value = item.project_name || `${item.owner}/${item.repo}`;
+            document.getElementById('editUrl').value = item.url;
+            document.getElementById('editBranch').value = item.branch;
+            document.getElementById('editToken').value = item.token || '';
+            
+            toggleEditModal();
+        };
 
-                if (historyList.length === 0) {
-                    listContainer.innerHTML = '<p class="text-gray-500 text-center py-4">저장된 기록이 없습니다.</p>';
+        saveEditBtn.addEventListener('click', async () => {
+            const originalUrl = document.getElementById('editOriginalUrl').value;
+            const originalBranch = document.getElementById('editOriginalBranch').value;
+            
+            const newUrl = document.getElementById('editUrl').value;
+            const repoInfo = parseGithubUrl(newUrl);
+            if (!repoInfo) {
+                alert("유효한 GitHub URL을 입력해주세요.");
+                return;
+            }
+
+            const newData = {
+                project_name: document.getElementById('editProjectName').value,
+                url: newUrl,
+                owner: repoInfo.owner,
+                repo: repoInfo.repo,
+                branch: document.getElementById('editBranch').value,
+                token: document.getElementById('editToken').value || null,
+                date: new Date().toISOString().replace('T', ' ').substring(0, 19) // 현재 시간 갱신
+            };
+
+            try {
+                const response = await fetch('/api/history/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        original_url: originalUrl,
+                        original_branch: originalBranch,
+                        new_data: newData
+                    })
+                });
+                
+                if (response.ok) {
+                    toggleEditModal();
+                    renderProjectList(); // 목록 갱신
                 } else {
-                    historyList.forEach(item => {
-                        const div = document.createElement('div');
-                        div.className = 'history-item p-3 border border-gray-200 rounded-lg hover:border-blue-400 transition duration-150';
-                        
-                        const tokenBadge = item.token ? '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full ml-2">Token 저장됨</span>' : '';
-                        
-                        div.innerHTML = `
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-gray-800 text-lg">${item.owner}/${item.repo}</span>
-                                <span class="text-xs text-gray-400">${item.date}</span>
-                            </div>
-                            <div class="text-sm text-gray-600 mt-1">
-                                <span class="font-semibold">Branch:</span> ${item.branch} ${tokenBadge}
-                            </div>
-                            <div class="text-xs text-gray-400 mt-1 truncate">${item.url}</div>
-                        `;
-                        
-                        // 항목 클릭 시 입력창 채우고 모달 닫기
-                        div.addEventListener('click', () => {
-                            githubUrlInput.value = item.url;
-                            branchNameInput.value = item.branch;
-                            if (item.token) {
-                                githubTokenInput.value = item.token;
-                            } else {
-                                githubTokenInput.value = '';
-                            }
-                            toggleModal();
-                        });
-                        
-                        listContainer.appendChild(div);
-                    });
+                    alert("수정 실패");
                 }
-                toggleModal();
             } catch (e) {
-                console.error("Failed to fetch history:", e);
-                alert("기록을 불러오는 중 오류가 발생했습니다.");
+                console.error(e);
+                alert("오류 발생");
             }
         });
 
-        historyCloseBtn.addEventListener('click', toggleModal);
-        document.querySelector('.modal-overlay').addEventListener('click', toggleModal);
+        editModalCloseBtn.addEventListener('click', toggleEditModal);
+        cancelEditBtn.addEventListener('click', toggleEditModal);
+        document.querySelector('.modal-overlay').addEventListener('click', toggleEditModal);
     </script>
 </body>
 </html>

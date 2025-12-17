@@ -33,6 +33,17 @@ if getattr(sys, 'frozen', False):
 else:
     app = Flask(__name__)
 
+# [설정 추가] 템플릿 자동 리로드 및 브라우저 캐시 방지
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+@app.after_request
+def add_header(response):
+    """브라우저가 페이지를 캐싱하지 않도록 헤더를 설정하여 변경 사항이 즉시 반영되게 함"""
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
 # --- GitHub 기본 설정 ---
 # 기본적으로 연결할 저장소 정보
 DEFAULT_REPO_OWNER = "IndyPD"
@@ -73,6 +84,45 @@ def save_history_data(new_item):
     except Exception as e:
         print(f"Error saving history: {e}")
 
+def delete_history_data(target_url, target_branch):
+    """히스토리에서 특정 항목을 삭제합니다."""
+    history = load_history_data()
+    
+    # URL과 Branch가 일치하는 항목 제거
+    new_history = [
+        item for item in history 
+        if not (item['url'] == target_url and item.get('branch') == target_branch)
+    ]
+    
+    try:
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(new_history, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error deleting history: {e}")
+        return False
+
+def update_history_data(original_url, original_branch, new_data):
+    """히스토리 항목을 수정합니다."""
+    history = load_history_data()
+    
+    # 기존 항목 제거 (URL과 Branch가 일치하는 것)
+    history = [
+        item for item in history 
+        if not (item['url'] == original_url and item.get('branch') == original_branch)
+    ]
+    
+    # 새 데이터 추가 (맨 앞)
+    history.insert(0, new_data)
+    
+    try:
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error updating history: {e}")
+        return False
+
 # --- 자동 종료를 위한 Heartbeat 설정 ---
 last_heartbeat = time.time()
 
@@ -97,6 +147,37 @@ def heartbeat():
 def get_history_api():
     """프론트엔드에 히스토리 목록을 JSON으로 반환합니다."""
     return jsonify(load_history_data())
+
+@app.route('/api/history/delete', methods=['POST'])
+def delete_history_api():
+    """프론트엔드 요청에 따라 히스토리 항목을 삭제합니다."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid data"}), 400
+        
+    url = data.get('url')
+    branch = data.get('branch')
+    
+    if delete_history_data(url, branch):
+        return jsonify(load_history_data())
+    else:
+        return jsonify({"error": "Failed to delete"}), 500
+
+@app.route('/api/history/update', methods=['POST'])
+def update_history_api():
+    """히스토리 항목 수정 API"""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid data"}), 400
+        
+    original_url = data.get('original_url')
+    original_branch = data.get('original_branch')
+    new_item = data.get('new_data')
+    
+    if update_history_data(original_url, original_branch, new_item):
+        return jsonify(load_history_data())
+    else:
+        return jsonify({"error": "Failed to update"}), 500
 
 def fetch_raw_file_content(owner, name, file_path, branch, token=None):
     """
@@ -298,6 +379,7 @@ def index():
         # 쿼리 파라미터에서 저장소 정보를 가져옵니다.
         owner = request.args.get('owner')
         repo_name = request.args.get('repo')
+        project_name = request.args.get('project_name') # 프로젝트명 추가
         # 브랜치 이름을 쿼리 파라미터에서 가져옵니다.
         branch_name = request.args.get('branch') 
         token = request.args.get('token') # 토큰 가져오기
@@ -329,15 +411,26 @@ def index():
             dynamic_history_data = parse_markdown_history(raw_history_content, current_repo_url)
             dynamic_todo_data = parse_markdown_todo(raw_todo_content, current_repo_url)
             
+            # 프로젝트명이 URL 파라미터로 오지 않았을 경우(외부 링크 등), 기존 히스토리에서 검색 시도
+            if not project_name:
+                history = load_history_data()
+                for item in history:
+                    if item['url'] == current_repo_url and item.get('branch') == branch_name:
+                        project_name = item.get('project_name', '')
+                        break
+
             # 3. 성공적으로 로드된 경우 히스토리 파일에 저장
-            save_history_data({
-                'owner': owner,
-                'repo': repo_name,
-                'url': current_repo_url,
-                'branch': branch_name,
-                'token': token, # 편의를 위해 토큰도 저장 (로컬 파일)
-                'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            })
+            # 에러가 발생하지 않은 경우(적어도 하나의 파일이 정상 로드된 경우)에만 저장
+            if not (raw_history_content.startswith("--- ERROR") and raw_todo_content.startswith("--- ERROR")):
+                save_history_data({
+                    'project_name': project_name if project_name else f"{owner}/{repo_name}", # 프로젝트명 저장
+                    'owner': owner,
+                    'repo': repo_name,
+                    'url': current_repo_url,
+                    'branch': branch_name,
+                    'token': token, # 편의를 위해 토큰도 저장 (로컬 파일)
+                    'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                })
         
         else:
             # 초기 로드 상태일 경우, UI에 표시될 Raw Content를 비워둡니다.
@@ -355,7 +448,8 @@ def index():
                             raw_todo_content=raw_todo_content,
                             github_repo_url=current_repo_url,
                             github_raw_branch=branch_name,
-                            github_token=token)
+                            github_token=token,
+                            project_name=project_name)
     except Exception as e:
         # 에러 발생 시 브라우저에 상세 내용을 출력 (디버깅용)
         return f"<h1>500 Internal Server Error</h1><pre>{traceback.format_exc()}</pre>", 500
