@@ -229,7 +229,7 @@ def parse_markdown_history(markdown_content, url_full):
     
     # 버전 헤더를 기준으로 전체 내용을 분할합니다.
     # 정규식: (v1.0.0) - (2024-01-01) ((제목)) \n [내용]
-    segments = re.split(r'(v\d+\.\d+\.\d+)\s*-\s*(\d{4}-\d{2}-\d{2})\s*\((.*?)\)\s*\n', markdown_content)
+    segments = re.split(r'(v\d+\.\d+\.\d+)\s*-\s*(\d{4}-\d{2}-\d{2})(?:\s*\((.*?)\))?\s*\n', markdown_content)
 
     # 섹션 순서를 고정하기 위한 맵
     SECTION_ORDER = ["hardware", "software", "issues", "other"]
@@ -241,7 +241,7 @@ def parse_markdown_history(markdown_content, url_full):
 
         version = segments[i].strip()
         date_str = segments[i+1].strip()
-        title = segments[i+2].strip()
+        title = segments[i+2].strip() if segments[i+2] else ""
         content = segments[i+3]
         
         sections_map = {}

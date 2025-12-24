@@ -1,5 +1,32 @@
 [
   {
+    "project_name": "시마즈",
+    "owner": "IndyPD",
+    "repo": "Shimadzu",
+    "url": "https://github.com/IndyPD/Shimadzu",
+    "branch": "0.1.5",
+    "token": null,
+    "date": "2025-12-24 19:22:58"
+  },
+  {
+    "project_name": "시마즈",
+    "owner": "IndyPD",
+    "repo": "Shimadzu",
+    "url": "https://github.com/IndyPD/Shimadzu",
+    "branch": "0.1.0",
+    "token": null,
+    "date": "2025-12-24 19:20:40"
+  },
+  {
+    "project_name": "시마즈",
+    "owner": "IndyPD",
+    "repo": "Shimadzu",
+    "url": "https://github.com/IndyPD/Shimadzu",
+    "branch": "main",
+    "token": null,
+    "date": "2025-12-22 11:08:27"
+  },
+  {
     "project_name": "프로젝트관리프로그램",
     "owner": "IndyPD",
     "repo": "ProjectManager",
